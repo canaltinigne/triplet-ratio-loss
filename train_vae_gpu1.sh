@@ -1,0 +1,10 @@
+#python autoencoder_train.py -e 80 -lr 1e-4 -data imagenet -d 512 -m vae -out sigmoid
+#python autoencoder_train.py -e 80 -lr 1e-4 -data imagenet -d 512 -m vae -out tanh
+python autoencoder_train.py -e 80 -lr 1e-4 -data cars -d 256 -m vae -out sigmoid
+python autoencoder_train.py -e 80 -lr 1e-4 -data cars -d 256 -m vae -out tanh
+python autoencoder_train.py -e 80 -lr 1e-4 -data dogs -d 256 -m vae -out sigmoid
+python autoencoder_train.py -e 80 -lr 1e-4 -data dogs -d 256 -m vae -out tanh
+python autoencoder_train.py -e 80 -lr 1e-4 -data cars -d 128 -m vae -out sigmoid
+python autoencoder_train.py -e 80 -lr 1e-4 -data cars -d 128 -m vae -out tanh
+python autoencoder_train.py -e 80 -lr 1e-4 -data dogs -d 128 -m vae -out sigmoid
+python autoencoder_train.py -e 80 -lr 1e-4 -data dogs -d 128 -m vae -out tanh

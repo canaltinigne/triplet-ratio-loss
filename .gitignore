@@ -1,0 +1,9 @@
+*.pdf
+models/*2020_norm*/
+models/data/
+models/*.txt
+models/*.pdf
+*ipynb
+__pycache__
+data/
+*.tar
