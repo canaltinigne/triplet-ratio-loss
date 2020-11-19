@@ -1,3 +1,36 @@
+"""
+AutoEncoder Training Script
+@author: Can Altinigne
+
+This script allows the user to train various autoencoder models such as
+Vanilla AE and Variational AE. The script saves the model output in 
+/models directory. 
+
+    * Loss Functions:
+    
+        - For AE: Mean Squared Error
+        - For VAE: Binary Cross-Entropy Loss plus KL-Divergence Loss
+
+The saved model has the lowest error in the training set. There was no
+validation set for the experiments.
+
+    * Example Usage:
+    
+        - AE: 
+            python autoencoder_train.py -e 80 -lr 1e-5 -data imagenet -d 512 -m ae -out sigmoid
+            
+        - VAE:
+            python autoencoder_train.py -e 80 -lr 1e-4 -data cub -d 128 -m vae -out sigmoid
+            
+You can also use the following shell scripts for automated training:
+
+    - train_vae_gpu0.sh
+    - train_vae_gpu1.sh
+    - train_ae_gpu0.sh
+    - train_ae_gpu1.sh
+            
+"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
