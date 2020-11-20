@@ -1,3 +1,11 @@
+"""
+AutoEncoder Models Script
+@author: Can Altinigne
+
+This script includes convolution layers, AE and VAE network structures.
+            
+"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -5,6 +13,25 @@ from torch.autograd import Variable
 
 
 class DoubleConv(nn.Module):
+    
+    """
+    Double Convolution layer for the encoder and decoder parts of 
+    AE and VAE.
+
+    2D Convolution -> Activation -> 2D Convolution
+
+    Args:
+        in_channels: Number of channels in the input tensor.
+        out_channels: Number of channels in the output tensor.
+
+    Returns:
+        An output tensor after applying two 2D convolutions and ReLU 
+        activation between those convolutions.
+        
+        DoubleConv(32,64)(torch.Tensor(1,32,48,48)) returns 
+        torch.Tensor(1,64,48,48)
+        
+    """
 
     def __init__(self, in_channels, out_channels):
         super().__init__()
@@ -20,6 +47,26 @@ class DoubleConv(nn.Module):
     
     
 class UNet_AE(nn.Module):
+    
+    """
+    UNet-like AutoEncoder structure.
+
+    Multiple up-sampling and down-sampling layers like UNet Structure.
+    The bottleneck part of UNet is used to obtain embeddings.
+
+    Args:
+        emb_size: Embedding size.
+        layer_num: Number of layers (max. 4).
+        edge: Edge size of the images in a dataset. This paramater is set
+        implicitly in autoencoder_train.py script considering the dataset 
+        used.
+        activation: Activation function before embeddings.
+
+    Returns:
+        x: An output tensor which has the same size as the input image.
+        embeddings: Embeddings in the bottleneck part of UNet structure.
+        
+    """
 
     def __init__(self, emb_size, layer_num, edge, activation):
         super().__init__()
@@ -73,6 +120,27 @@ class UNet_AE(nn.Module):
     
     
 class UNet_VAE(nn.Module):
+    
+    """
+    UNet-like Variational AutoEncoder structure.
+
+    Multiple up-sampling and down-sampling layers like UNet Structure.
+    The bottleneck part of UNet behaves like VAE with mu and var layers.
+
+    Args:
+        emb_size: Embedding size.
+        layer_num: Number of layers (max. 4).
+        edge: Edge size of the images in a dataset. This paramater is set
+        implicitly in autoencoder_train.py script considering the dataset 
+        used.
+        activation: Activation function before embeddings.
+
+    Returns:
+        x: An output tensor which has the same size as the input image.
+        z_mu: Embeddings in the bottleneck representing mean.
+        z_var: Embeddings in the bottleneck representing variance.
+        
+    """
 
     def __init__(self, emb_size, layer_num, edge, activation):
         super().__init__()
