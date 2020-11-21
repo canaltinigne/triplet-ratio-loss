@@ -1,3 +1,13 @@
+"""
+CUB-2011 Dataset Downloader and Preparer
+@author: Can Altinigne
+
+This script is taken from
+
+https://notebook.community/MegaShow/college-programming/Homework/Principles%20of%20Artificial%20Neural%20Networks/NTS-Net/NTS-Net
+
+"""
+
 import os
 import pandas as pd
 from torchvision.datasets.folder import default_loader
