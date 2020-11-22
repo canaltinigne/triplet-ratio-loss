@@ -1,3 +1,31 @@
+"""
+Supervised Training Script for Deep Metric Learning
+@author: Can Altinigne
+
+This script is the main program that trains deep metric learning
+models.
+
+    - Parameters:
+        - e: Number of epochs
+        - lr: Learning rate
+        - b: Batch size
+        - d: Embedding dimension
+        - m: Redundant Parameter
+        - l: Loss Function, Please check if section below to see which loss function corresponds
+             to which number.
+        - n: Network Model, ['resnet18', 'resnet34', 'resnet50', 'resnet101']
+        - max: Redundant parameter
+        - min: Redundant parameter
+        - norm: In order to use L2 normalization on embeddings (for original TCL)
+        - data: Dataset name, ['dogs', 'cifar10', 'cifar100', 'cub', 'cars', 'imagenet', 'flowers', 'aircraft']
+        - out: Output activation on embeddings, ['linear', 'tanh', 'softmax', 'sigmoid', 'twohead', 'relu']
+        - r: Give the .pth file directory to resume training from a saved model.
+        - a: Use the adaptive center updating mechanism
+        - dec: Exponential decay rate in the adaptive center updating mechanism
+        - reg: Lambda parameter in L2 regularization on embeddings
+
+"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -25,7 +53,7 @@ if __name__ == "__main__":
     parser.add_argument('-lr', '--rate', type=float, required=True, help='Learning Rate')
     parser.add_argument('-b', '--batch', type=int, default=16, help='Batch Size')
     parser.add_argument('-d', '--dim', type=int, required=True, help='Embedding Dimension')
-    parser.add_argument('-m', '--learnm', type=float, required=True, help='If args.m==-1 learn m')
+    parser.add_argument('-m', '--learnm', type=float, required=False, default=0.1, help='If args.m==-1 learn m')
     parser.add_argument('-l', '--loss', type=int, required=True, help='1-Original Triplet Center, 2-Modified')
     parser.add_argument('-n', '--network', type=str, required=True, help='Network Model')
     parser.add_argument('-max', '--maxpool', type=int, default=0, help='Use max-pool at the end')
