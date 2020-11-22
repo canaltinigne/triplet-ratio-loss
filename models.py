@@ -1,11 +1,20 @@
-'''ResNet in PyTorch.
+"""
+Different ResNet Models for CIFAR-10 dataset.
+@author: Can Altinigne
 
-For Pre-activation ResNet, see 'preact_resnet.py'.
+This script includes ResNet models with various number of 
+layers.
 
-Reference:
-[1] Kaiming He, Xiangyu Zhang, Shaoqing Ren, Jian Sun
+ResNet Paper:
+    - Kaiming He, Xiangyu Zhang, Shaoqing Ren, Jian Sun
     Deep Residual Learning for Image Recognition. arXiv:1512.03385
-'''
+
+This script is taken from:
+
+    - https://github.com/NERSC/pytorch-examples/blob/master/models/resnet_cifar10.py
+
+"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
