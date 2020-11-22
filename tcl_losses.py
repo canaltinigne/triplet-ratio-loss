@@ -1,3 +1,19 @@
+"""
+Original Triplet Center Loss with trainable centers.
+@author: Can Altinigne
+
+This script includes the original Triplet Center Loss.
+
+TCL Paper:
+    He et al., 2018
+    - https://openaccess.thecvf.com/content_cvpr_2018/papers/He_Triplet-Center_Loss_for_CVPR_2018_paper.pdf
+
+This script is taken from:
+
+    - https://github.com/eriche2016/cvpr_2018_TCL.pytorch/blob/master/custom_losses.py
+
+"""
+
 import torch 
 import torch.nn as nn 
 import torch.nn.parallel
