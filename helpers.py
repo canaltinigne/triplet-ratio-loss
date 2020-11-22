@@ -1,3 +1,16 @@
+"""
+Different Loss Functions and Helper Functions
+@author: Can Altinigne
+
+This script includes the loss functions that have been used 
+in the experiments. Also, there are several helper functions to 
+find and initialize centers.
+
+All loss functions get the same parameters, so that I added
+parameter definitions to the first loss function only.
+
+"""
+
 import torch
 import numpy as np
 import torch.nn.functional as F
@@ -6,22 +19,155 @@ import time
 
 
 def centerInit(numClass, dim):
+    
+    """
+    Center Initialization Function.
+    
+    Initialize the embeddings between [-1, 1]
+
+    Args:
+        numClass: Number of classes in the dataset.
+        dim: Embedding dimension.
+
+    Returns:
+        Initial center embeddings that have values between 
+        [-1,1]
+        
+        centerInit(10,128) -> torch.Tensor(10,128)
+        
+    """
+    
     return (torch.rand(numClass,dim)-0.5)*2
 
 
 def distance(m1, m2):
+    
+    """
+    Squared Euclidean Distance Calculation Function.
+
+    Args:
+        m1: The first tensor.
+        m2: The second tensor.
+
+    Returns:
+        Euclidean Distance between two tensors.
+        
+        m1 = torch.from_numpy([2,3])
+        m2 = torch.from_numpy([5,7])
+        
+        distance(m1,m2) -> 25.0
+        
+    """
+        
     return (m1-m2)**2
 
 
 def angularDistance(m1, m2):
+    
+    """
+    Cosine Distance Calculation Function.
+    
+    This function is wrongly named. For real angular distance 
+    calculation please check 'originalAngularTripletLossUpdated' 
+    function below.
+
+    Args:
+        m1: The first tensor.
+        m2: The second tensor.
+
+    Returns:
+        Cosine Distance between two tensors.
+        
+        m1 = torch.from_numpy([3,4])
+        m2 = torch.from_numpy([6,8])
+        
+        distance(m1,m2) -> 0.0
+        
+    """
+        
     return 1 - (m1*m2).sum(dim=-1)/((m1**2).sum().sqrt() * (m2**2).sum(dim=-1).sqrt() + 1e-32)
 
 
-def tripletCenterLoss(output, target, m, centers, class_num, c_points=None, center_distance=None, ang_distance=None):
-    loss = 0.
+def centerUpdate(centers, c_points, numClass, adaptive=False, epoch=None, k=None, norm=False):
     
     """
-    # Well Vectorized
+    Center Update Function.
+    
+    Updates the centers with KMeans-like schema. It 
+    also supports adaptive updating mechanism.
+
+    Args:
+        centers: Centroids from the previous epoch torch.Tensor(CLASS NUMBER, EMBEDDING SIZE)
+        c_points: 
+        adaptive: If adaptive updating mechanism is set to True.
+        epoch: Implicit epoch parameter set in train function in trainer.py.
+        k: Implicit k parameter in adaptive updating mechanism set in train.py.
+        norm: Implicit normalization parameter set in train.py.
+        
+    """
+        
+    for i in range(numClass):
+        if adaptive:
+            rate = 0.9*np.exp(-k*epoch)
+            centers[i] = rate*centers[i] + (1-rate)*c_points[i].mean(dim=0)
+            
+        else:
+            centers[i] = c_points[i].mean(dim=0)
+            
+        if norm:
+            centers[i] = centers[i] / (centers[i].pow(2).sum().sqrt()+1e-7)
+
+
+def tripletCenterLoss(output, target, m, centers, class_num, c_points=None, center_distance=None, ang_distance=None):
+    
+    """
+    Original Triplet Center Loss Function.
+
+    Args:
+        output: Output embeddings: torch.Tensor(BATCH SIZE, EMBEDDING SIZE).
+        target: Class label of the embeddings: torch.Tensor(BATCH SIZE, 1).
+        m: Margin value in triplet loss function.
+        centers: Centroids: torch.Tensor(NUMBER OF CLASSES, EMBEDDING SIZE).
+        class_num: Number of classes in the dataset.
+        c_points: Helper dictionary to add new embeddings to the class they belong to.
+        center_distance: Lookup table for center distances: torch.Tensor(NUMBER OF CLASSES, NUMBER OF CLASSES)
+        ang_distance: Same as center_distance but it has angular distance instead.
+
+    Returns:
+        Triplet Center Loss in a batch.
+        
+    """
+        
+    loss = 0.
+    
+    for i, out in enumerate(output):
+        classId = target[i].item() #0 if target[i].item() == 3 else 1
+        diffClassInd = [x for x in range(class_num) if x != classId]
+        
+        if c_points is not None:
+            if classId not in c_points:
+                c_points[classId] = out.unsqueeze(0).data
+            else:
+                c_points[classId] = torch.cat((c_points[classId], out.unsqueeze(0).data), dim=0)
+                
+        D_xc = distance(out, centers[classId]).sum()
+        min_D_xj = distance(out, centers[diffClassInd]).sum(dim=-1).min()
+       
+        loss = loss + F.relu(D_xc - min_D_xj + m)
+        
+    return loss/target.size()[0]
+
+
+def tripletCenterLossVectorized(output, target, m, centers, class_num, c_points=None, center_distance=None, ang_distance=None):
+    
+    """
+    Well vectorized Original Triplet Center Loss Function.
+    
+    This function is the well vectorized version of 'tripletCenterLoss' 
+    function. This version is used for the time measurement experiments.
+        
+    """
+        
     torch.cuda.synchronize()
     start_time = time.time()
     
@@ -60,31 +206,50 @@ def tripletCenterLoss(output, target, m, centers, class_num, c_points=None, cent
                
     
     return F.relu(dist_ap - dist_an + m).mean()
+
+
+def tripletCenterLossV2(output, target, m, centers, class_num, c_points=None, center_distance=None, ang_distance=None):
     
     """
+    Our version of Original Triplet Center Loss Function
     
-    for i, out in enumerate(output):
-        classId = target[i].item() #0 if target[i].item() == 3 else 1
-        diffClassInd = [x for x in range(class_num) if x != classId]
+    This function uses look-up tables to improve the performance
+    compared to the original Triplet Center Loss function.
         
+    """
+        
+    loss = 0.
+
+    for i, out in enumerate(output):
+        classId = target[i].item()
+
         if c_points is not None:
             if classId not in c_points:
                 c_points[classId] = out.unsqueeze(0).data
             else:
                 c_points[classId] = torch.cat((c_points[classId], out.unsqueeze(0).data), dim=0)
-                
-        D_xc = distance(out, centers[classId]).sum()
-        min_D_xj = distance(out, centers[diffClassInd]).sum(dim=-1).min()
-       
-        loss = loss + F.relu(D_xc - min_D_xj + m)
         
+        D_xc = distance(out, centers[classId]).sum().sqrt()
+        
+        # 2 - Random Triplet Center Loss
+        #min_D_xj = distance(out, centers[diffClassInd][np.random.randint(len(diffClassInd))]).sum().sqrt()
+        
+        # 3 - Distance between sample and a center (the closest one to sample's center)
+        min_D_xj = distance(out, center_distance[classId]).sum().sqrt()
+                
+        loss = loss + F.relu(D_xc - min_D_xj + m)
+    
     return loss/target.size()[0]
     
 
-
-def tripletCenterLossV2(output, target, m, centers, class_num, c_points=None, center_distance=None, ang_distance=None):
-    loss = 0.
+def tripletCenterLossV2Vectorized(output, target, m, centers, class_num, c_points=None, center_distance=None, ang_distance=None):
     
+    """
+    Well vectorized version of Our Triplet Center Loss Function.
+    
+    This function is the well vectorized version of 'tripletCenterLossV2' 
+    function. This version is used for the time measurement experiments.
+        
     """
     
     torch.cuda.synchronize()
@@ -108,31 +273,17 @@ def tripletCenterLossV2(output, target, m, centers, class_num, c_points=None, ce
     
     return F.relu(D_xc - min_D_xj + m).mean()
     
-    """
-    
-    for i, out in enumerate(output):
-        classId = target[i].item()
-
-        if c_points is not None:
-            if classId not in c_points:
-                c_points[classId] = out.unsqueeze(0).data
-            else:
-                c_points[classId] = torch.cat((c_points[classId], out.unsqueeze(0).data), dim=0)
-        
-        D_xc = distance(out, centers[classId]).sum().sqrt()
-        
-        # 2 - Random Triplet Center Loss
-        #min_D_xj = distance(out, centers[diffClassInd][np.random.randint(len(diffClassInd))]).sum().sqrt()
-        
-        # 3 - Distance between sample and a center (the closest one to sample's center)
-        min_D_xj = distance(out, center_distance[classId]).sum().sqrt()
-                
-        loss = loss + F.relu(D_xc - min_D_xj + m)
-    
-    return loss/target.size()[0]
-    
     
 def angularTripletLoss(output, target, m, centers, class_num, c_points=None, center_distance=None, ang_distance=None):
+    
+    """
+    Our Version of Angular Triplet Center Loss Function with Cosine Distance
+    as distance metric.
+    
+    This loss function assumes our approach of using look-up tables.
+        
+    """
+        
     loss = 0.
     
     for i, out in enumerate(output):
@@ -153,6 +304,15 @@ def angularTripletLoss(output, target, m, centers, class_num, c_points=None, cen
 
 
 def angularTripletLossUpdated(output, target, m, centers, class_num, c_points=None, center_distance=None, ang_distance=None):
+    
+    """
+    Our Version of Angular Triplet Center Loss Function with Angular Distance
+    as distance metric.
+    
+    This loss function assumes our approach of using look-up tables.
+        
+    """
+    
     loss = 0.
     
     for i, out in enumerate(output):
@@ -174,6 +334,15 @@ def angularTripletLossUpdated(output, target, m, centers, class_num, c_points=No
 
 
 def originalAngularTripletLoss(output, target, m, centers, class_num, c_points=None, center_distance=None, ang_distance=None):
+    
+    """
+    Original Angular Triplet Center Loss Function with Cosine Distance
+    as distance metric.
+    
+    This loss function assumes our approach of using look-up tables.
+        
+    """
+    
     loss = 0.
         
     for i, out in enumerate(output):
@@ -195,6 +364,19 @@ def originalAngularTripletLoss(output, target, m, centers, class_num, c_points=N
 
 
 def originalAngularTripletLossUpdated(output, target, m, centers, class_num, c_points=None, center_distance=None, ang_distance=None):
+    
+    """
+    Original Angular Triplet Center Loss Function with Angular Distance
+    as distance metric.
+    
+    Detailed description on how to calculate ATCL can be found in the 
+    paper below.
+    
+    Li et al., 2019
+    https://arxiv.org/pdf/1811.08622.pdf
+        
+    """
+    
     loss = 0.
     
     g1 = dict()
@@ -234,6 +416,13 @@ def originalAngularTripletLossUpdated(output, target, m, centers, class_num, c_p
 
 
 def angularOursCombined(output, target, m, centers, class_num, c_points=None, center_distance=None, ang_distance=None):
+    
+    """
+    Redundant Loss Function which combines our implementation of 
+    angular and triplet center loss functions.
+            
+    """
+    
     loss = 0.
     
     for i, out in enumerate(output):
@@ -259,6 +448,12 @@ def angularOursCombined(output, target, m, centers, class_num, c_points=None, ce
 
 
 def sigmoidLoss(output, target, m, centers, class_num, c_points=None, center_distance=None, ang_distance=None):
+    
+    """
+    Redundant Experimental Loss Function 
+            
+    """
+    
     loss = 0.
     
     for i, out in enumerate(output):
@@ -280,6 +475,12 @@ def sigmoidLoss(output, target, m, centers, class_num, c_points=None, center_dis
 
 
 def logLoss(output, target, m, centers, class_num, c_points=None, center_distance=None, ang_distance=None):
+    
+    """
+    Redundant Experimental Loss Function 
+            
+    """
+    
     loss = 0.
     
     for i, out in enumerate(output):
@@ -301,6 +502,12 @@ def logLoss(output, target, m, centers, class_num, c_points=None, center_distanc
 
 
 def sigmoidLossV2(output, target, m, centers, class_num, c_points=None, center_distance=None, ang_distance=None):
+    
+    """
+    Redundant Experimental Loss Function 
+            
+    """
+    
     loss = 0.
     
     for i, out in enumerate(output):
@@ -322,6 +529,12 @@ def sigmoidLossV2(output, target, m, centers, class_num, c_points=None, center_d
 
 
 def logLossV2(output, target, m, centers, class_num, c_points=None, center_distance=None, ang_distance=None):
+    
+    """
+    Redundant Experimental Loss Function 
+            
+    """
+    
     loss = 0.
     
     for i, out in enumerate(output):
@@ -346,6 +559,12 @@ def logLossV2(output, target, m, centers, class_num, c_points=None, center_dista
 
 
 def logLossV3(output, target, m, centers, class_num, c_points=None, center_distance=None, ang_distance=None):
+    
+    """
+    Redundant Experimental Loss Function 
+            
+    """
+    
     loss = 0.
     
     for i, out in enumerate(output):
@@ -370,6 +589,13 @@ def logLossV3(output, target, m, centers, class_num, c_points=None, center_dista
 
 
 def expLoss(output, target, m, centers, class_num, c_points=None, center_distance=None, ang_distance=None):
+    
+    """
+    Our Version of Centroid-based Triplet Ratio Loss Function
+    with Squared Euclidean distance as distance metric.
+       
+    """
+    
     loss = 0.
     
     for i, out in enumerate(output):
@@ -392,6 +618,16 @@ def expLoss(output, target, m, centers, class_num, c_points=None, center_distanc
 
 class expLossLearnable(nn.Module):
     
+    """
+    Our Version of Centroid-based Triplet Ratio Loss Function
+    with Squared Euclidean distance as distance metric.
+    
+    This version has trainable centers as another hyperparameter.
+    Trainable centers are defined in __init__ function and named
+    as self.centers. The centers are initialized as Random Gausssians.
+            
+    """
+    
     def __init__(self, class_num, dimension):
         super(expLossLearnable, self).__init__()
         self.centers = nn.Parameter(torch.randn(class_num, dimension))
@@ -413,6 +649,13 @@ class expLossLearnable(nn.Module):
 
 
 def originalTRL(output, target, m, centers, class_num, c_points=None, center_distance=None, ang_distance=None):
+    
+    """
+    Original Centroid-based Triplet Ratio Loss Function
+    with Squared Euclidean distance as distance metric.
+            
+    """
+    
     loss = 0.
     
     for i, out in enumerate(output):
@@ -438,6 +681,13 @@ def originalTRL(output, target, m, centers, class_num, c_points=None, center_dis
 
 
 def ratioLoss(output, target, m, centers, class_num, c_points=None, center_distance=None, ang_distance=None):
+    
+    """
+    Shallow Centroid-based Ratio Loss Function
+    with Squared Euclidean distance as distance metric.
+            
+    """
+    
     loss = 0.
     
     for i, out in enumerate(output):
@@ -459,6 +709,14 @@ def ratioLoss(output, target, m, centers, class_num, c_points=None, center_dista
 
 
 def variantExpLoss(output, target, m, centers, class_num, c_points=None, center_distance=None, ang_distance=None):
+    
+    """
+    Different Version of Our Version of Centroid-based 
+    Triplet Ratio Loss Function with Squared Euclidean 
+    distance as distance metric.
+       
+    """
+    
     loss = 0.
     
     for i, out in enumerate(output):
@@ -480,6 +738,14 @@ def variantExpLoss(output, target, m, centers, class_num, c_points=None, center_
 
 
 def taylorLoss(output, target, m, centers, class_num, c_points=None, center_distance=None, ang_distance=None):
+    
+    """
+    Taylor Series Approximation of Our Version of Centroid-based 
+    Triplet Ratio Loss Function with Euclidean 
+    distance as distance metric.
+       
+    """
+    
     loss = 0.
     
     for i, out in enumerate(output):
@@ -503,6 +769,13 @@ def taylorLoss(output, target, m, centers, class_num, c_points=None, center_dist
 
 
 def expLossEuclidean(output, target, m, centers, class_num, c_points=None, center_distance=None, ang_distance=None):
+    
+    """
+    Our Version of Centroid-based Triplet Ratio Loss Function
+    with Euclidean distance as distance metric.
+       
+    """
+        
     loss = 0.
     
     for i, out in enumerate(output):
@@ -524,6 +797,14 @@ def expLossEuclidean(output, target, m, centers, class_num, c_points=None, cente
 
 
 def taylorLossSquared(output, target, m, centers, class_num, c_points=None, center_distance=None, ang_distance=None):
+    
+    """
+    Taylor Series Approximation of Our Version of Centroid-based 
+    Triplet Ratio Loss Function with Squared Euclidean 
+    distance as distance metric.
+       
+    """
+    
     loss = 0.
     
     for i, out in enumerate(output):
@@ -543,18 +824,4 @@ def taylorLossSquared(output, target, m, centers, class_num, c_points=None, cent
         
         loss = loss + (1 - x + x.pow(2)/2 - x.pow(3)/6 + x.pow(4)/24)
         
-    return loss/target.size()[0]
-
-    
-def centerUpdate(centers, c_points, numClass, adaptive=False, epoch=None, k=None, norm=False):
-    for i in range(numClass):
-        if adaptive:
-            rate = 0.9*np.exp(-k*epoch)
-            centers[i] = rate*centers[i] + (1-rate)*c_points[i].mean(dim=0)
-            
-        else:
-            centers[i] = c_points[i].mean(dim=0)
-            
-        if norm:
-            centers[i] = centers[i] / (centers[i].pow(2).sum().sqrt()+1e-7)
- 
+    return loss/target.size()[0] 
