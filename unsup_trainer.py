@@ -1,3 +1,14 @@
+"""
+Trainer Functions
+@author: Can Altinigne
+
+This script includes the unsupervised train function, which is used 
+in unsup_train.py script. This function is called in each epoch.
+Please consider the comments in the code. You may want to 
+uncomment some of those lines to apply additional loss functions.
+
+"""
+
 import torch
 from tqdm import tqdm
 import torch.nn as nn
@@ -5,6 +16,30 @@ import numpy as np
 
 
 def train(model, trainLoader, optimizer, loss_fn, t_losses, m, ep, cfg, centers, kmeans, center_distances, c_points, class_ids):
+    
+        """
+    Train function which does the forward and backpropagation
+    in each epoch.
+
+    Args:
+        model: ResNet model to be trained.
+        trainLoader: DataLoader object for the training set.
+        optimizer: Optimizer object.
+        loss_fn: Selected loss function.
+        t_losses: Array to add training loss values continuously.
+        m: Margin value.
+        ep: Current epoch.
+        centers: Current centers.
+        kmeans: Scikit-learn model for K-Means Clustering.
+        center_distances: Look-up table that keeps the distance between centroids.
+        c_points: Redundant parameter.
+        class_ids: Class labels that the embeddings are assigned to.
+
+    Returns:
+        Average Training Loss for the current epoch.
+        
+    """
+    
     model.train()
     
     with tqdm(total=len(trainLoader), dynamic_ncols=True) as progress:

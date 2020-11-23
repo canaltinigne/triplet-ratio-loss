@@ -43,19 +43,21 @@ def centerInit(numClass, dim):
 def distance(m1, m2):
     
     """
-    Squared Euclidean Distance Calculation Function.
+    Squared Euclidean Distance Calculation Function. Loss
+    functions take the sum of the output to calculate the 
+    distance.
 
     Args:
         m1: The first tensor.
         m2: The second tensor.
 
     Returns:
-        Euclidean Distance between two tensors.
+        Euclidean Distance between two tensors as a vector.
         
         m1 = torch.from_numpy([2,3])
         m2 = torch.from_numpy([5,7])
         
-        distance(m1,m2) -> 25.0
+        distance(m1,m2) -> torch.Tensor([9, 16])
         
     """
         

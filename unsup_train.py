@@ -1,3 +1,30 @@
+"""
+Unsupervised Training Script for Deep Metric Learning
+@author: Can Altinigne
+
+This script is the main program that trains deep metric learning
+models in unsupervised settings. Currently, K-means clustering 
+algorithm is run for each epoch to assign class labels as in the 
+previous unsupervised deep metric learning papers.
+
+    - Parameters:
+        - e: Number of epochs
+        - lr: Learning rate
+        - b: Batch size
+        - d: Embedding dimension
+        - m: Redundant Parameter
+        - l: Loss Function, Please check if section below to see which loss function corresponds
+             to which number.
+        - n: Network Model, ['resnet18', 'resnet34', 'resnet50', 'resnet101']
+        - max: Redundant parameter
+        - min: Redundant parameter
+        - norm: In order to use L2 normalization on embeddings (for original TCL)
+        - data: Dataset name, ['dogs', 'cifar10', 'cifar100', 'cub', 'cars', 'imagenet', 'flowers', 'aircraft']
+        - out: Output activation on embeddings, ['linear', 'tanh', 'softmax', 'sigmoid', 'twohead', 'relu']
+        - r: Give the .pth file directory to resume training from a saved model.
+
+"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
