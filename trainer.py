@@ -1,9 +1,44 @@
+"""
+Trainer Functions
+@author: Can Altinigne
+
+This script includes the train function, which is used in train.py 
+script. This function is called in each epoch.
+
+"""
+
 import torch
 from tqdm import tqdm
 import torch.nn as nn
 
 
 def train(model, trainLoader, optimizer, loss_fn, t_losses, m, ep, centers, c_classes, cfg, centerDistance=None, angularDistance=None):
+    
+    """
+    Train function which does the forward and backpropagation
+    in each epoch.
+
+    Args:
+        model: ResNet model to be trained.
+        trainLoader: DataLoader object for the training set.
+        optimizer: Optimizer object.
+        loss_fn: Selected loss function.
+        t_losses: Array to add training loss values continuously.
+        m: Margin value.
+        ep: Current epoch.
+        centers: Current centers.
+        c_classes: Dictionary to keep new embeddings as values and class labels as keys. 
+                   This dictionary is used to take the average of new embeddings to find
+                   new centers.
+        cfg: Config dictionary.
+        centerDistance: Lookup tables for Euclidean distance between centers.
+        angularDistance: Lookup tables for Angular distance between centers.
+
+    Returns:
+        Average Training Loss for the current epoch.
+        
+    """
+        
     model.train()
     
     with tqdm(total=len(trainLoader), dynamic_ncols=True) as progress:
@@ -82,6 +117,20 @@ def train(model, trainLoader, optimizer, loss_fn, t_losses, m, ep, centers, c_cl
 
 
 def clip_gradient(optimizer, grad_clip):
+    
+    """
+    This function clips the gradients for Original Triplet Center Loss
+
+    Args:
+        optimizer: Optimizer object.
+        grad_clip: Clipping limits.
+        
+    Taken from:
+    
+        - https://github.com/xlliu7/Shrec2018_TripletCenterLoss.pytorch/blob/master/misc/utils.py
+  
+    """
+        
     assert grad_clip>0, 'gradient clip value must be greater than 1'
     for group in optimizer.param_groups:
         for param in group['params']:
@@ -90,6 +139,21 @@ def clip_gradient(optimizer, grad_clip):
 
 
 def createCenters(model, trainLoader, numClass, dim):
+    
+    """
+    This function creates the centroids by doing forward propagation
+    with the initial network before training phase. This function is
+    redundant as we create our centroids with one-hot encoded vectors
+    and Random Gaussians.
+
+    Args:
+        model: Model object.
+        trainLoader: DataLoader object for the training set. 
+        numClass: Number of classes.
+        dim: Embedding dimension.
+        
+    """
+        
     model.eval()
     centers = torch.rand(numClass,dim).cuda()
     c_points = dict()
